@@ -19,20 +19,38 @@ public class Player_Movement : MonoBehaviour
     [SerializeField] DrawChecker leftChecker;
     [SerializeField] LayerMask groundLayer;
     [SerializeField] LayerMask wallLayer;
-    Transform playerTransform;
-    Rigidbody2D playerRigidbody;
-    TimerObject wallJumpTimer;
 
+    [Header("Animations Logic")]
+    [Space]
+    Animator anim;
     float currentSpeed = 0;
     bool collided_RightWall;
     bool collided_LeftWall;
     bool jumpedFromFloor = false;
+    [Header("Attack Logic")]
+    [Space]
+    [SerializeField] float chargingTime;
+    [SerializeField] int dynamicObject_CheckDistance;
+    [SerializeField] LayerMask dynamicObject;
+
+    Transform playerTransform;
+    Rigidbody2D playerRigidbody;
+    TimerObject wallJumpTimer;
+    TimerObject attackTimer;
+    TimerObject chargeTimer;
+    AnimationObject animationObject;
 
     void Start ()
     {
         playerRigidbody = GetComponent<Rigidbody2D>();
         playerTransform = GetComponent<Transform>();
+        anim = GetComponent<Animator>();
+
         wallJumpTimer = new TimerObject(this);
+        attackTimer = new TimerObject(this);
+        chargeTimer = new TimerObject(this);
+        animationObject = new AnimationObject(this);
+
         gravity = playerRigidbody.gravityScale;
     }
     void Update()
@@ -55,13 +73,13 @@ public class Player_Movement : MonoBehaviour
     {
         bool movingRight = Input.GetKey(KeyCode.D);
         bool movingLeft = Input.GetKey(KeyCode.A);
-        if (Input.GetKey(KeyCode.D) && !collided_RightWall)
+        if (Input.GetKey(KeyCode.D) && !collided_RightWall) //Si right move y no me he golpeado con una pared en la derecha
         {
             movingRight = true;
             movingLeft = false;
             currentSpeed += IsGrounded() ? acceleration * Time.deltaTime : acceleration * 3 * Time.deltaTime;
         }
-        else if (Input.GetKey(KeyCode.A) && !collided_LeftWall)
+        else if (Input.GetKey(KeyCode.A) && !collided_LeftWall)  //Si left move y no me he golpeado con una pared en la izquierda
         {
             
             movingLeft = true;
@@ -69,11 +87,11 @@ public class Player_Movement : MonoBehaviour
             currentSpeed -= IsGrounded() ? acceleration * Time.deltaTime : acceleration * 3 * Time.deltaTime;
         }
 
-        if ((movingRight && currentSpeed < 0 || movingLeft && currentSpeed > 0))
+        if ((movingRight && currentSpeed < 0 || movingLeft && currentSpeed > 0)) //Si me estoy moviendo y la velocidad es negativa o positiva
         {
             currentSpeed = Mathf.MoveTowards(currentSpeed, 0, directionChangeSpeed * Time.deltaTime);
         }
-        else if (!IsGrounded())
+        else if (!IsGrounded()) //Si no estoy en el suelo
         {
             currentSpeed = Mathf.MoveTowards(currentSpeed, 0, (deceleration / 3) * Time.deltaTime);
         }
@@ -83,6 +101,7 @@ public class Player_Movement : MonoBehaviour
         }
 
         currentSpeed = Mathf.Clamp(currentSpeed, -maxPlayerSpeed, maxPlayerSpeed);
+        anim.SetFloat(animationObject.MOVE_ANIMATOR_TAG, currentSpeed);
         playerRigidbody.linearVelocity = new Vector2 (currentSpeed, playerRigidbody.linearVelocityY);
 
     }
@@ -103,7 +122,14 @@ public class Player_Movement : MonoBehaviour
                 if (IsGrounded())
                 {
                     wallJumpTimer.StartTimer(.75f);
-                    playerRigidbody.AddForceY(jumpForce, ForceMode2D.Impulse);
+                    if (collided_RightWall || collided_LeftWall)
+                    {
+                        playerRigidbody.AddForceY(jumpForce / gravityDecelerator, ForceMode2D.Impulse);
+                    }
+                    else
+                    {
+                        playerRigidbody.AddForceY(jumpForce, ForceMode2D.Impulse);
+                    }
                     jumpedFromFloor = true;
                 }
                 else
@@ -127,6 +153,38 @@ public class Player_Movement : MonoBehaviour
         {
             playerRigidbody.gravityScale = gravity;
         }
+    }
+    void PlayerAttack()
+    {
+        float counter;
+        if (!attackTimer.IsTimerActive()) //Ataque normal
+        {
+            if (Input.GetMouseButtonDown(0))
+            {
+                attackTimer.StartTimer(.5f);
+                anim.SetTrigger(animationObject.ATTACK_ANIMATOR_TAG);
+            }
+        }
+        if (Input.GetMouseButton(0)) //Ataque cargado
+        {
+            counter += Time.deltaTime;
+            if (counter > chargingTime)
+            {
+                counter = 0;
+                anim.SetTrigger(animationObject.CHARGED_ATTACK_ANIMATOR_TAG);
+            }
+        }
+    }
+    void ChargedAttack()
+    {
+        RayCastHit2D rayCastHit2D(transform.position,transform.right, dynamicObject_CheckDistance, dynamicObject)
+
+        if(rayCastHit2D == null) return;
+
+        Transform objectTransform = rayCastHit2D.transform;
+
+        objectTransform.parent = playerTransform;
+        objectTransform.position = playerTransform.position + playerTransform.forward * 3;
 
     }
 }

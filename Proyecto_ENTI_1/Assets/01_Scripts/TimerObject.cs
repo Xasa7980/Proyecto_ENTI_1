@@ -1,4 +1,3 @@
-
 using System.Collections;
 using UnityEngine;
 
@@ -26,5 +25,17 @@ public class TimerObject
         isWaiting = true;
         yield return new WaitForSeconds(time);
         isWaiting = false;
+    }
+}
+public class AnimationObject
+{
+    const string ATTACK_ANIMATOR_TAG = "Attack";
+    const string CHARGED_ATTACK_ANIMATOR_TAG = "ChargedAttack";
+    const string MOVE_ANIMATOR_TAG = "Movement";
+
+    Animator anim;
+    public AnimationObject (Animator anim)
+    {
+        this.anim = anim;
     }
 }
